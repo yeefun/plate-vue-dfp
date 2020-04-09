@@ -1,10 +1,13 @@
 <template>
-  <div :class="`${className} ${extClass}`" :id="adunit" :pos="pos" :style="style" v-if="!isEmpty" :sessionId="sessionId" :size="size"></div>
+  <div :class="`${className} ${extClass}`" :id="elId" :data-adunit="adunit" :pos="pos" :data-slot-key="slotKey" :style="style" v-if="!isEmpty" :sessionId="sessionId" :size="size"></div>
 </template>
 <script>
   const debug = require('debug')('CLIENT:Dfp')
   export default {
     computed: {
+      elId () {
+        return `${this.adunit}-auto-gen-id-${this.suffixId}`
+      },
       adunit () {
         let _unitId = !this.unitId
           ? this.currConfig.dfpUnits[ this.currConfig.section ][ this.pos ][ 'aduid' ]
@@ -37,6 +40,9 @@
       },
       sessionId () {
         return this.currConfig.sessionId
+      },
+      slotKey () {
+        return `${this.pos}-${this.suffixId}`
       }
     },
     data () {
@@ -48,23 +54,25 @@
     methods: {
       defineDfp () {
         googletag.cmd.push(() => {
-          if (window.adSlots[ this.pos ]) {
+          // if (window.adSlots[ this.slotKey ] && window.adSlots[ this.slotKey ].adId === this.elId) {
+          if (window.adSlots[ this.slotKey ]) {
             googletag.destroySlots([ window.adSlots[ this.pos ] ])
             googletag.pubads().clear([ window.adSlots[ this.pos ] ])
           }
           if (this.isEmpty) { return }
-          const slot = document.querySelector(`#${this.adunit}`)
+
+          const slot = document.getElementById(this.elId)
           if (slot) {
-            debug(`GOING TO REMOVE SLOT#${this.adunit} LAGACY STYLE.`)
+            debug(`GOING TO REMOVE SLOT#${this.elId} LAGACY STYLE.`)
             slot.removeAttribute('style')
             slot.innerHtml = ''
             slot.setAttribute('style', this.currConfig.dfpUnits[ this.currConfig.section ][ this.pos ][ 'cont-style' ].join(';'))
           } else {
-            debug(`SLOT #${this.adunit} DOESN'T EXIST AT THIS MOMENT.`)
+            debug(`SLOT #${this.elId} DOESN'T EXIST AT THIS MOMENT.`)
           }
           const isSlotVisible = slot ? (slot.currentStyle ? slot.currentStyle.display : window.getComputedStyle(slot, null).display) : null
           if (isSlotVisible === 'none') {
-            delete window.adSlots[ this.pos ]
+            delete window.adSlots[ this.slotKey ]
             return
           }
 
@@ -73,11 +81,11 @@
           if (!isOutOfPage) {
             _s = googletag.defineSlot(`/${this.currConfig.dfpId}/${this.adunit}`
                       , this.getDimensions(this.currConfig.dfpUnits[ this.currConfig.section ][ this.pos ][ 'dimensions' ])
-                      , this.adunit)
+                      , this.elId)
             try {
               _s.addService(googletag.pubads())
             } catch (err) {
-              debug('UNABLED TO RENDER AD', this.adunit)
+              debug('UNABLED TO RENDER AD', this.elId)
               debug('ERR', err)
               return
             }
@@ -104,32 +112,32 @@
               })
               _s.defineSizeMapping(map.build())
             }
-            window.adSlots[ this.pos ] = _s
+            window.adSlots[ this.slotKey ] = _s
           } else {
             debug('##### OOP DETECTED #####')
             // _s = googletag.defineOutOfPageSlot(`/${this.currConfig.dfpId}/${this.adunit}`
-            //                       , this.adunit)
-            _s = googletag.defineOutOfPageSlot(`/${this.currConfig.dfpId}/${this.adunit}`, this.adunit)
+            //                       , this.elId)
+            _s = googletag.defineOutOfPageSlot(`/${this.currConfig.dfpId}/${this.adunit}`, this.elId)
             try {
               _s.addService(googletag.pubads())
             } catch (err) {
-              debug('UNABLED TO RENDER OOP AD', this.adunit)
+              debug('UNABLED TO RENDER OOP AD', this.elId)
               debug('ERR', err)
               return
             }
             // _s = googletag.pubads().defineOutOfPagePassback(`/${this.currConfig.dfpId}/${this.adunit}`)
-            window.adSlots[ this.pos ] = _s
-            window.adSlots[ this.pos ].isOutOfPage = true
+            window.adSlots[ this.slotKey ] = _s
+            window.adSlots[ this.slotKey ].isOutOfPage = true
           }
-
-          window.adSlots[ this.pos ].adId = this.adunit
-          window.adSlots[ this.pos ].displayFlag = false
-          window.adSlots[ this.pos ].refreshFlag = false
+          window.adSlots[ this.slotKey ].adId = this.elId
+          window.adSlots[ this.slotKey ].displayFlag = false
+          window.adSlots[ this.slotKey ].refreshFlag = false
 
           googletag.cmd.push(() => {
-            if (!window.adSlots[ this.pos ].refreshFlag) {
-              googletag.pubads().refresh([ window.adSlots[ this.pos ] ])
-              window.adSlots[ this.pos ].refreshFlag = true
+            if (!window.adSlots[ this.slotKey ].refreshFlag) {
+              googletag.pubads().refresh([ window.adSlots[ this.slotKey ] ])
+              // googletag.display(window.adSlots[ this.slotKey ].adId)
+              window.adSlots[ this.slotKey ].refreshFlag = true
             }
           })
         })
@@ -205,6 +213,10 @@
       },
       unitId: {
         default: () => { return undefined }
+      },
+      suffixId: {
+        type: Number,
+        default: 1
       },
       mode: {
         default: () => { return 'prod' }

@@ -75,17 +75,20 @@
         googletag.cmd.push(() => {
           const adContainers = [ ...document.querySelectorAll('.ad-container') ]
           adContainers.forEach(slot => {
-            const _aduid = slot.getAttribute('id')
+            const _aduid = slot.dataset.adunit
+            const elId = slot.getAttribute('id')
             const _pos = slot.getAttribute('pos')
+            const slotKey = slot.dataset.slotKey
+  
             const isSlotVisible = slot.currentStyle ? slot.currentStyle.display : window.getComputedStyle(slot, null).display
 
-            if (window.adSlots[ _pos ]) {
-              googletag.destroySlots([ window.adSlots[ _pos ] ])
-              googletag.pubads().clear([ window.adSlots[ _pos ] ])
+            if (window.adSlots[ slotKey ]) {
+              googletag.destroySlots([ window.adSlots[ slotKey ] ])
+              googletag.pubads().clear([ window.adSlots[ slotKey ] ])
             }
 
             if (isSlotVisible === 'none') {
-              delete window.adSlots[ _pos ]
+              delete window.adSlots[ slotKey ]
               return
             }
 
@@ -94,11 +97,11 @@
             if (!isOutOfPage) {
               _s = googletag.defineSlot(`/${this.dfpid}/${_aduid}`
                                     , this.getDimensions(this.dfpUnits[ this.section ][ _pos ][ 'dimensions' ])
-                                    , _aduid)
+                                    , elId)
               try {
                 _s.addService(googletag.pubads())
               } catch (err) {
-                debug('unabled to render ad', _aduid)
+                debug('unabled to render ad', elId)
                 debug('err', err)
                 return
               }
@@ -120,27 +123,27 @@
                 })
                 _s.defineSizeMapping(map.build())
               }
-              window.adSlots[ _pos ] = _s
+              window.adSlots[ slotKey ] = _s
             } else {
               debug('##### OOP DETECTED #####')
-              _s = googletag.defineOutOfPageSlot(`/${this.dfpid}/${_aduid}`, _aduid)
+              _s = googletag.defineOutOfPageSlot(`/${this.dfpid}/${_aduid}`, elId)
               // _s = googletag.pubads().defineOutOfPagePassback(`/${this.dfpid}/${_aduid}`)
 
               try {
                 _s.addService(googletag.pubads())
               } catch (err) {
-                debug('unabled to render oop ad', this.dfpid, _aduid)
+                debug('unabled to render oop ad', this.dfpid, elId)
                 debug('err', err)
                 return
               }
 
-              window.adSlots[ _pos ] = _s
-              window.adSlots[ _pos ].isOutOfPage = true
+              window.adSlots[ slotKey ] = _s
+              window.adSlots[ slotKey ].isOutOfPage = true
             }
 
-            window.adSlots[ _pos ].adId = _aduid
-            window.adSlots[ _pos ].displayFlag = false
-            window.adSlots[ _pos ].refreshFlag = false
+            window.adSlots[ slotKey ].adId = elId
+            window.adSlots[ slotKey ].displayFlag = false
+            window.adSlots[ slotKey ].refreshFlag = false
           })
         })
       },
